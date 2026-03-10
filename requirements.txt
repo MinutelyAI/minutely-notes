@@ -1,0 +1,6 @@
+openai-whisper
+pyannote.audio
+fastapi
+uvicorn
+python-multipart
+python-dotenv
