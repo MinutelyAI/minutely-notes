@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minutely — Transcribe Recording</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f0f13;
+            color: #e8e8f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .logo { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; letter-spacing: -0.5px; }
+        .logo span { color: #7c6af7; }
+        .subtitle { color: #666; font-size: 14px; margin-bottom: 48px; }
+
+        .card {
+            background: #1a1a24;
+            border: 1px solid #2a2a3a;
+            border-radius: 16px;
+            padding: 32px;
+            width: 100%;
+            max-width: 680px;
+            margin-bottom: 24px;
+        }
+
+        .upload-zone {
+            border: 2px dashed #2a2a3a;
+            border-radius: 12px;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: #7c6af7;
+            background: rgba(124, 106, 247, 0.05);
+        }
+
+        .upload-zone input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .upload-icon { font-size: 48px; margin-bottom: 16px; }
+        .upload-zone h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: #fff; }
+        .upload-zone p { font-size: 13px; color: #555; }
+
+        .file-selected {
+            margin-top: 16px;
+            padding: 12px 16px;
+            background: rgba(124, 106, 247, 0.1);
+            border: 1px solid rgba(124, 106, 247, 0.3);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #7c6af7;
+            display: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #7c6af7;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover { background: #6b59e6; }
+        .btn:disabled { background: #333; color: #555; cursor: not-allowed; }
+
+        .progress-section { display: none; }
+
+        .progress-bar-wrap {
+            background: #2a2a3a;
+            border-radius: 999px;
+            height: 6px;
+            margin: 16px 0 8px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #7c6af7, #a78bfa);
+            border-radius: 999px;
+            width: 0%;
+            transition: width 0.5s ease;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .progress-status { font-size: 13px; color: #666; text-align: center; }
+
+        .steps { display: flex; justify-content: space-between; margin-top: 20px; }
+
+        .step { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
+
+        .step-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #2a2a3a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .step.active .step-dot { background: #7c6af7; }
+        .step.done .step-dot { background: #22c55e; }
+        .step-label { font-size: 11px; color: #555; text-align: center; }
+        .step.active .step-label { color: #7c6af7; }
+        .step.done .step-label { color: #22c55e; }
+
+        .result-section { display: none; }
+
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .result-header h2 { font-size: 18px; font-weight: 600; }
+        .export-btns { display: flex; gap: 8px; }
+
+        .btn-sm {
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid #2a2a3a;
+            background: #1a1a24;
+            color: #e8e8f0;
+            transition: all 0.2s;
+        }
+
+        .btn-sm:hover { border-color: #7c6af7; color: #7c6af7; }
+
+        .segments {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .segments::-webkit-scrollbar { width: 4px; }
+        .segments::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 2px; }
+
+        .segment {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #0f0f13;
+            border: 1px solid #2a2a3a;
+        }
+
+        .speaker-badge {
+            flex-shrink: 0;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            height: fit-content;
+        }
+
+        .segment-content { flex: 1; }
+        .segment-time { font-size: 11px; color: #444; margin-bottom: 4px; }
+        .segment-text { font-size: 14px; line-height: 1.6; color: #ccc; }
+
+        .error-box {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 10px;
+            padding: 16px;
+            color: #ef4444;
+            font-size: 14px;
+            display: none;
+            margin-top: 16px;
+        }
+
+        .reset-btn {
+            background: transparent;
+            border: 1px solid #2a2a3a;
+            color: #666;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 16px;
+            transition: all 0.2s;
+        }
+
+        .reset-btn:hover { border-color: #7c6af7; color: #7c6af7; }
+    </style>
+</head>
+<body>
+
+<div class="logo">Minutely<span>.</span></div>
+<div class="subtitle">AI Meeting Transcription with Speaker Labels</div>
+
+<div class="card" id="uploadCard">
+    <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".mp3,.wav,.mp4,.m4a,.webm">
+        <div class="upload-icon">🎙️</div>
+        <h3>Drop your meeting recording here</h3>
+        <p>Supports MP3, WAV, MP4, M4A, WEBM</p>
+    </div>
+    <div class="file-selected" id="fileSelected"></div>
+    <div class="error-box" id="errorBox"></div>
+    <button class="btn" id="transcribeBtn" disabled onclick="startTranscription()">Transcribe Meeting</button>
+</div>
+
+<div class="card progress-section" id="progressCard">
+    <h3 style="margin-bottom: 20px; font-size: 16px;">Processing your meeting...</h3>
+    <div class="steps">
+        <div class="step" id="step1"><div class="step-dot">📤</div><div class="step-label">Uploading</div></div>
+        <div class="step" id="step2"><div class="step-dot">🎵</div><div class="step-label">Transcribing</div></div>
+        <div class="step" id="step3"><div class="step-dot">👥</div><div class="step-label">Identifying Speakers</div></div>
+        <div class="step" id="step4"><div class="step-dot">✅</div><div class="step-label">Done</div></div>
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="progress-status" id="progressStatus">Uploading audio...</div>
+</div>
+
+<div class="card result-section" id="resultCard">
+    <div class="result-header">
+        <h2>Transcript</h2>
+        <div class="export-btns">
+            <button class="btn-sm" onclick="copyTranscript()">📋 Copy</button>
+            <button class="btn-sm" onclick="exportTxt()">📄 Export TXT</button>
+            <button class="btn-sm" onclick="exportJson()">📦 Export JSON</button>
+        </div>
+    </div>
+    <div class="segments" id="segments"></div>
+    <button class="reset-btn" onclick="reset()">← Transcribe another file</button>
+</div>
+
+<!-- Load config (gitignored — copy config.example.js to config.js and fill in your keys) -->
+<script src="config.js"></script>
+<script>
+    const API_URL = CONFIG.MODAL_URL;
+
+    const SPEAKER_COLORS = [
+        { bg: "rgba(124,106,247,0.15)", color: "#7c6af7" },
+        { bg: "rgba(34,197,94,0.15)", color: "#22c55e" },
+        { bg: "rgba(251,191,36,0.15)", color: "#fbbf24" },
+        { bg: "rgba(239,68,68,0.15)", color: "#ef4444" },
+        { bg: "rgba(59,130,246,0.15)", color: "#3b82f6" },
+        { bg: "rgba(236,72,153,0.15)", color: "#ec4899" },
+    ];
+
+    let selectedFile = null;
+    let resultData = null;
+    const speakerColorMap = {};
+    let colorIndex = 0;
+
+    function getSpeakerColor(speaker) {
+        if (!speakerColorMap[speaker]) {
+            speakerColorMap[speaker] = SPEAKER_COLORS[colorIndex % SPEAKER_COLORS.length];
+            colorIndex++;
+        }
+        return speakerColorMap[speaker];
+    }
+
+    function formatTime(seconds) {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s.toString().padStart(2, "0")}`;
+    }
+
+    document.getElementById("fileInput").addEventListener("change", (e) => {
+        if (e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    const zone = document.getElementById("uploadZone");
+    zone.addEventListener("dragover", (e) => { e.preventDefault(); zone.classList.add("drag-over"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+    zone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        zone.classList.remove("drag-over");
+        if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+
+    function handleFile(file) {
+        selectedFile = file;
+        const selected = document.getElementById("fileSelected");
+        selected.style.display = "block";
+        selected.textContent = `✓ ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+        document.getElementById("transcribeBtn").disabled = false;
+        document.getElementById("errorBox").style.display = "none";
+    }
+
+    function setStep(stepNum) {
+        for (let i = 1; i <= 4; i++) {
+            const step = document.getElementById(`step${i}`);
+            step.className = "step" + (i < stepNum ? " done" : i === stepNum ? " active" : "");
+        }
+    }
+
+    function setProgress(pct, status) {
+        document.getElementById("progressBar").style.width = pct + "%";
+        document.getElementById("progressStatus").textContent = status;
+    }
+
+    async function startTranscription() {
+        if (!selectedFile) return;
+
+        document.getElementById("uploadCard").style.display = "none";
+        document.getElementById("progressCard").style.display = "block";
+        setStep(1);
+        setProgress(10, "Reading audio file...");
+
+        try {
+            const base64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(",")[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(selectedFile);
+            });
+
+            setStep(2);
+            setProgress(30, "Uploading to AI server...");
+
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ audio: base64, language: "en", min_speakers: 1, max_speakers: 8 })
+            });
+
+            setStep(3);
+            setProgress(70, "Transcribing & identifying speakers...");
+
+            if (!response.ok) throw new Error(await response.text());
+
+            resultData = await response.json();
+            setStep(4);
+            setProgress(100, "Done!");
+            setTimeout(() => showResult(), 500);
+
+        } catch (err) {
+            document.getElementById("progressCard").style.display = "none";
+            document.getElementById("uploadCard").style.display = "block";
+            const errorBox = document.getElementById("errorBox");
+            errorBox.style.display = "block";
+            errorBox.textContent = "Error: " + err.message;
+        }
+    }
+
+    function showResult() {
+        document.getElementById("progressCard").style.display = "none";
+        document.getElementById("resultCard").style.display = "block";
+
+        const container = document.getElementById("segments");
+        container.innerHTML = "";
+
+        resultData.segments.forEach(seg => {
+            const color = getSpeakerColor(seg.speaker);
+            const div = document.createElement("div");
+            div.className = "segment";
+            div.innerHTML = `
+                <div class="speaker-badge" style="background:${color.bg}; color:${color.color}">
+                    ${seg.speaker.replace("SPEAKER_", "S")}
+                </div>
+                <div class="segment-content">
+                    <div class="segment-time">${formatTime(seg.start)} → ${formatTime(seg.end)}</div>
+                    <div class="segment-text">${seg.text}</div>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function copyTranscript() {
+        const text = resultData.segments.map(s => `[${s.speaker}] ${s.text}`).join("\n\n");
+        navigator.clipboard.writeText(text);
+    }
+
+    function exportTxt() {
+        const text = resultData.segments
+            .map(s => `[${s.speaker}] (${formatTime(s.start)} - ${formatTime(s.end)})\n${s.text}`)
+            .join("\n\n");
+        download("transcript.txt", text);
+    }
+
+    function exportJson() {
+        download("transcript.json", JSON.stringify(resultData, null, 2));
+    }
+
+    function download(filename, content) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([content]));
+        a.download = filename;
+        a.click();
+    }
+
+    function reset() {
+        selectedFile = null;
+        resultData = null;
+        document.getElementById("resultCard").style.display = "none";
+        document.getElementById("uploadCard").style.display = "block";
+        document.getElementById("fileSelected").style.display = "none";
+        document.getElementById("transcribeBtn").disabled = true;
+        document.getElementById("fileInput").value = "";
+        Object.keys(speakerColorMap).forEach(k => delete speakerColorMap[k]);
+        colorIndex = 0;
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minutely — Live Meeting</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080810;
+  --surface: #0f0f1a;
+  --border: rgba(255,255,255,0.07);
+  --border-bright: rgba(255,255,255,0.15);
+  --accent: #6c63ff;
+  --accent2: #ff6b6b;
+  --accent3: #63ffda;
+  --text: #e8e8f4;
+  --muted: #555570;
+  --muted2: #333348;
+  --green: #4ade80;
+  --red: #f87171;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Ambient background */
+body::before {
+  content: '';
+  position: fixed;
+  top: -200px;
+  left: -200px;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(108,99,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  bottom: -200px;
+  right: -200px;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(99,255,218,0.05) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ---- SCREENS ---- */
+.screen { display: none; min-height: 100vh; position: relative; z-index: 1; }
+.screen.active { display: flex; flex-direction: column; }
+
+/* ---- LOBBY ---- */
+#lobby {
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.lobby-inner {
+  width: 100%;
+  max-width: 480px;
+  animation: fadeUp 0.5s ease;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.logo-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 48px;
+}
+
+.logo-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.logo-text {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.logo-text span { color: var(--accent); }
+
+.lobby-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.lobby-sub {
+  color: var(--muted);
+  font-size: 15px;
+  margin-bottom: 40px;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  font-family: 'DM Mono', monospace;
+}
+
+.field input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.field input:focus { border-color: var(--accent); }
+.field input::placeholder { color: var(--muted2); }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+  margin-bottom: 12px;
+}
+
+.btn-primary:hover { background: #5a52e0; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+
+.btn-secondary {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.key-setup {
+  margin-top: 24px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.key-setup-title {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 10px;
+}
+
+.key-row {
+  display: flex;
+  gap: 8px;
+}
+
+.key-row input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'DM Mono', monospace;
+  outline: none;
+}
+
+.key-row input:focus { border-color: var(--accent); }
+
+.key-save {
+  padding: 10px 16px;
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.key-save:hover { background: var(--accent); color: #fff; }
+.key-saved { font-size: 11px; color: var(--green); margin-top: 6px; display: none; }
+
+/* ---- MEETING ---- */
+#meeting {
+  flex-direction: column;
+  height: 100vh;
+}
+
+.meeting-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.meeting-logo {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.meeting-logo span { color: var(--accent); }
+
+.room-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.room-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.copy-link-btn {
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.copy-link-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.meeting-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Participants sidebar */
+.sidebar {
+  width: 220px;
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.sidebar-title {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: 'DM Mono', monospace;
+  margin-bottom: 16px;
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: background 0.2s;
+}
+
+.participant.speaking { background: rgba(108,99,255,0.1); }
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.participant.speaking .avatar { border-color: var(--accent); }
+
+.participant-name {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mic-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted2);
+  flex-shrink: 0;
+}
+
+.participant.mic-on .mic-dot {
+  background: var(--green);
+  animation: micPulse 1.5s infinite;
+}
+
+@keyframes micPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Transcript area */
+.transcript-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.transcript-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.transcript-scroll::-webkit-scrollbar { width: 4px; }
+.transcript-scroll::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 2px; }
+
+.transcript-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 80px 0;
+  font-style: italic;
+}
+
+.message {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  animation: msgIn 0.3s ease;
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.msg-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.msg-content { flex: 1; }
+
+.msg-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.msg-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.msg-time {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+}
+
+.msg-text {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #cccce0;
+}
+
+/* Interim */
+.interim-bar {
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  min-height: 48px;
+  flex-shrink: 0;
+}
+
+.interim-text {
+  font-size: 14px;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* Controls bar */
+.controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.btn-mic {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.btn-mic.off {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-mic.off:hover { background: #5a52e0; }
+
+.btn-mic.on {
+  background: var(--red);
+  color: #fff;
+}
+
+.btn-mic.on:hover { background: #e85555; }
+
+.mic-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.btn-mic.on .mic-indicator { animation: micPulse 1s infinite; }
+
+.status-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-family: 'DM Mono', monospace;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.status-pill.connected { border-color: rgba(74,222,128,0.3); color: var(--green); }
+.status-pill.error { border-color: rgba(248,113,113,0.3); color: var(--red); }
+
+.btn-export {
+  margin-left: auto;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.btn-export:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn-leave {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid rgba(248,113,113,0.3);
+  color: var(--red);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s;
+}
+
+.btn-leave:hover { background: rgba(248,113,113,0.1); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface);
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 13px;
+  color: var(--text);
+  z-index: 1000;
+  transition: transform 0.3s ease;
+  pointer-events: none;
+}
+
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* AVATAR COLORS */
+.av-0 { background: rgba(108,99,255,0.2); color: #6c63ff; }
+.av-1 { background: rgba(255,107,107,0.2); color: #ff6b6b; }
+.av-2 { background: rgba(99,255,218,0.2); color: #63ffda; }
+.av-3 { background: rgba(255,200,87,0.2); color: #ffc857; }
+.av-4 { background: rgba(174,139,255,0.2); color: #ae8bff; }
+.av-5 { background: rgba(87,255,168,0.2); color: #57ffa8; }
+</style>
+</head>
+<body>
+
+<!-- LOBBY SCREEN -->
+<div id="lobby" class="screen active">
+  <div class="lobby-inner">
+    <div class="logo-mark">
+      <div class="logo-icon">🎙</div>
+      <div class="logo-text">Minutely<span>.</span></div>
+    </div>
+
+    <h1 class="lobby-title">Real-time meeting transcription</h1>
+    <p class="lobby-sub">Create a room or join with a code. Everyone's mic, one transcript.</p>
+
+    <div class="field">
+      <label>Your Name</label>
+      <input type="text" id="nameInput" placeholder="e.g. Mujtaba" maxlength="30" />
+    </div>
+
+    <button class="btn-primary" onclick="createRoom()">🚀 Create New Meeting</button>
+
+    <div class="divider">or join existing</div>
+
+    <div class="field">
+      <label>Room Code</label>
+      <input type="text" id="roomCodeInput" placeholder="e.g. MEET-4829" maxlength="12" style="font-family:'DM Mono',monospace; text-transform:uppercase;" />
+    </div>
+
+    <button class="btn-secondary" onclick="joinRoom()">Join Meeting</button>
+
+
+  </div>
+</div>
+
+<!-- MEETING SCREEN -->
+<div id="meeting" class="screen">
+  <div class="meeting-header">
+    <div class="meeting-logo">Minutely<span>.</span></div>
+    <div class="room-info">
+      <div class="room-badge" id="roomBadge">ROOM-0000</div>
+      <button class="copy-link-btn" onclick="copyRoomLink()">📋 Copy invite link</button>
+    </div>
+  </div>
+
+  <div class="meeting-body">
+    <div class="sidebar">
+      <div class="sidebar-title">Participants</div>
+      <div id="participantsList"></div>
+    </div>
+
+    <div class="transcript-area">
+      <div class="transcript-scroll" id="transcriptScroll">
+        <div class="transcript-empty" id="transcriptEmpty">Waiting for someone to speak...</div>
+      </div>
+      <div class="interim-bar">
+        <div class="interim-text" id="interimText"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-bar">
+    <button class="btn-mic off" id="micBtn" onclick="toggleMic()">
+      <div class="mic-indicator"></div>
+      Start Mic
+    </button>
+    <span class="status-pill" id="dgStatus">Not connected</span>
+    <button class="btn-export" onclick="exportTranscript()">📄 Export</button>
+    <button class="btn-leave" onclick="leaveMeeting()">Leave</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Load config (gitignored — copy config.example.js to config.js and fill in your keys) -->
+<script src="config.js"></script>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, push, onValue, set, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = window.CONFIG.FIREBASE;
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getDatabase(firebaseApp);
+
+// ---- STATE ----
+const DEEPGRAM_KEY = window.CONFIG.DEEPGRAM_KEY;
+let roomId = "";
+let myName = "";
+let myId = "u_" + Math.random().toString(36).substr(2, 8);
+let colorIndex = 0;
+let nameColorMap = {};
+let socket = null;
+let mediaRecorder = null;
+let isRecording = false;
+let transcriptMessages = [];
+
+// ---- ROOM MGMT ----
+function genRoomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "MEET-";
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+window.createRoom = () => {
+  const name = document.getElementById("nameInput").value.trim();
+  if (!name) { showToast("Enter your name first!"); return; }
+  myName = name;
+  roomId = genRoomCode();
+  enterMeeting();
+};
+
+window.joinRoom = () => {
+  const name = document.getElementById("nameInput").value.trim();
+  const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+  if (!name) { showToast("Enter your name first!"); return; }
+  if (!code) { showToast("Enter a room code!"); return; }
+  myName = name;
+  roomId = code;
+  enterMeeting();
+};
+
+// Check URL for room code
+const urlParams = new URLSearchParams(window.location.search);
+const urlRoom = urlParams.get("room");
+if (urlRoom) {
+  document.getElementById("roomCodeInput").value = urlRoom.toUpperCase();
+}
+
+function enterMeeting() {
+  // Update URL
+  const url = new URL(window.location);
+  url.searchParams.set("room", roomId);
+  window.history.pushState({}, "", url);
+
+  // Switch screens
+  document.getElementById("lobby").classList.remove("active");
+  document.getElementById("meeting").classList.add("active");
+  document.getElementById("roomBadge").textContent = roomId;
+
+  // Register presence
+  const presenceRef = ref(db, `rooms/${roomId}/participants/${myId}`);
+  set(presenceRef, { name: myName, joinedAt: Date.now() });
+  onDisconnect(presenceRef).remove();
+
+  // Listen for participants
+  onValue(ref(db, `rooms/${roomId}/participants`), snap => {
+    const data = snap.val() || {};
+    renderParticipants(data);
+  });
+
+  // Listen for transcript
+  onValue(ref(db, `rooms/${roomId}/transcript`), snap => {
+    const data = snap.val() || {};
+    renderTranscript(data);
+  });
+}
+
+// ---- PARTICIPANTS ----
+function getColor(name) {
+  if (!nameColorMap[name]) {
+    nameColorMap[name] = colorIndex % 6;
+    colorIndex++;
+  }
+  return nameColorMap[name];
+}
+
+function getInitials(name) {
+  return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function renderParticipants(data) {
+  const list = document.getElementById("participantsList");
+  list.innerHTML = "";
+  Object.entries(data).forEach(([uid, p]) => {
+    const c = getColor(p.name);
+    const isMe = uid === myId;
+    const div = document.createElement("div");
+    div.className = "participant" + (isMe && isRecording ? " mic-on" : "");
+    div.innerHTML = `
+      <div class="avatar av-${c}">${getInitials(p.name)}</div>
+      <div class="participant-name">${p.name}${isMe ? " (you)" : ""}</div>
+      <div class="mic-dot"></div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+// ---- TRANSCRIPT ----
+function renderTranscript(data) {
+  const scroll = document.getElementById("transcriptScroll");
+  const empty = document.getElementById("transcriptEmpty");
+  const entries = Object.values(data).sort((a, b) => a.ts - b.ts);
+  transcriptMessages = entries;
+
+  if (entries.length === 0) {
+    empty.style.display = "block";
+    return;
+  }
+
+  empty.style.display = "none";
+  const prevCount = scroll.querySelectorAll(".message").length;
+
+  if (entries.length !== prevCount) {
+    scroll.querySelectorAll(".message").forEach(e => e.remove());
+    entries.forEach(entry => {
+      const c = getColor(entry.name);
+      const div = document.createElement("div");
+      div.className = "message";
+      const time = new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      div.innerHTML = `
+        <div class="msg-avatar av-${c}">${getInitials(entry.name)}</div>
+        <div class="msg-content">
+          <div class="msg-header">
+            <span class="msg-name">${entry.name}</span>
+            <span class="msg-time">${time}</span>
+          </div>
+          <div class="msg-text">${entry.text}</div>
+        </div>
+      `;
+      scroll.appendChild(div);
+    });
+    scroll.scrollTop = scroll.scrollHeight;
+  }
+}
+
+// ---- MIC / DEEPGRAM ----
+window.toggleMic = () => {
+  if (isRecording) stopMic();
+  else startMic();
+};
+
+async function startMic() {
+  const btn = document.getElementById("micBtn");
+  const status = document.getElementById("dgStatus");
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    const params = new URLSearchParams({
+      model: "nova-3",
+      smart_format: "true",
+      interim_results: "true",
+      punctuate: "true",
+      utterance_end_ms: "1000",
+      vad_events: "true",
+      endpointing: "300",
+    });
+
+    socket = new WebSocket(
+      `wss://api.deepgram.com/v1/listen?${params}`,
+      ["token", DEEPGRAM_KEY]
+    );
+
+    socket.onopen = () => {
+      status.textContent = "🟢 Connected";
+      status.className = "status-pill connected";
+
+      mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mediaRecorder.ondataavailable = e => {
+        if (socket.readyState === WebSocket.OPEN && e.data.size > 0) socket.send(e.data);
+      };
+      mediaRecorder.start(250);
+
+      isRecording = true;
+      btn.className = "btn-mic on";
+      btn.innerHTML = '<div class="mic-indicator"></div> Stop Mic';
+
+      // update participant mic indicator
+      renderParticipants_me_on();
+    };
+
+    socket.onmessage = e => {
+      const data = JSON.parse(e.data);
+      if (data.type === "Results") {
+        const t = data.channel?.alternatives?.[0]?.transcript;
+        if (!t) return;
+        if (data.is_final) {
+          if (t.trim()) {
+            document.getElementById("interimText").textContent = "";
+            push(ref(db, `rooms/${roomId}/transcript`), {
+              name: myName,
+              text: t.trim(),
+              ts: Date.now()
+            });
+          }
+        } else {
+          document.getElementById("interimText").textContent = myName + ": " + t;
+        }
+      }
+      if (data.type === "UtteranceEnd") {
+        const interim = document.getElementById("interimText").textContent;
+        if (interim) document.getElementById("interimText").textContent = "";
+      }
+    };
+
+    socket.onerror = () => {
+      status.textContent = "❌ Error";
+      status.className = "status-pill error";
+    };
+
+    socket.onclose = () => {
+      if (isRecording) {
+        status.textContent = "Disconnected";
+        status.className = "status-pill";
+      }
+    };
+
+  } catch (err) {
+    status.textContent = "❌ " + err.message;
+    status.className = "status-pill error";
+    showToast("Mic error: " + err.message);
+  }
+}
+
+function renderParticipants_me_on() {
+  const items = document.querySelectorAll(".participant");
+  // re-query from firebase will update, but let's just refresh
+}
+
+function stopMic() {
+  isRecording = false;
+  if (mediaRecorder) mediaRecorder.stop();
+  if (socket) socket.close();
+
+  const btn = document.getElementById("micBtn");
+  btn.className = "btn-mic off";
+  btn.innerHTML = '<div class="mic-indicator"></div> Start Mic';
+
+  document.getElementById("dgStatus").textContent = "Stopped";
+  document.getElementById("dgStatus").className = "status-pill";
+  document.getElementById("interimText").textContent = "";
+}
+
+// ---- UTILS ----
+window.copyRoomLink = () => {
+  const url = new URL(window.location);
+  url.searchParams.set("room", roomId);
+  navigator.clipboard.writeText(url.toString());
+  showToast("Invite link copied! Share it with your friends.");
+};
+
+window.exportTranscript = () => {
+  const lines = transcriptMessages.map(m => {
+    const time = new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return `[${time}] ${m.name}: ${m.text}`;
+  }).join("\n\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lines], { type: "text/plain" }));
+  a.download = `transcript-${roomId}.txt`;
+  a.click();
+};
+
+window.leaveMeeting = () => {
+  stopMic();
+  const presenceRef = ref(db, `rooms/${roomId}/participants/${myId}`);
+  set(presenceRef, null);
+  window.location.href = window.location.pathname;
+};
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3000);
+}
+</script>
+</body>
+</html>

@@ -1,9 +1,10 @@
 import modal
-import io
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 app = modal.App("minutely-notes")
 
-# Persistent volume for model cache
 volume = modal.Volume.from_name("minutely-model-cache", create_if_missing=True)
 
 image = (
@@ -21,12 +22,33 @@ image = (
     )
 )
 
+web_app = FastAPI()
+
+web_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@web_app.post("/")
+async def transcribe_endpoint(request: Request):
+    import base64
+    body = await request.json()
+    audio_bytes = base64.b64decode(body["audio"])
+    language = body.get("language", "en")
+    min_speakers = body.get("min_speakers", 1)
+    max_speakers = body.get("max_speakers", 8)
+    result = transcribe.local(audio_bytes, language, min_speakers, max_speakers)
+    return JSONResponse(content=result)
+
+
 @app.function(
     image=image,
     gpu="T4",
     timeout=600,
     secrets=[modal.Secret.from_name("minutely-secrets")],
-    volumes={"/cache": volume},  # mount volume
+    volumes={"/cache": volume},
 )
 def transcribe(audio_bytes: bytes, language: str = "en", min_speakers: int = 1, max_speakers: int = 8) -> dict:
     import whisper
@@ -37,7 +59,6 @@ def transcribe(audio_bytes: bytes, language: str = "en", min_speakers: int = 1, 
     from pyannote.audio import Pipeline
     from concurrent.futures import ThreadPoolExecutor
 
-    # Point model caches to persistent volume
     os.environ["WHISPER_CACHE"] = "/cache/whisper"
     os.environ["HF_HOME"] = "/cache/huggingface"
     os.makedirs("/cache/whisper", exist_ok=True)
@@ -130,6 +151,18 @@ def transcribe(audio_bytes: bytes, language: str = "en", min_speakers: int = 1, 
         "language": whisper_result["language"],
         "segments": segments
     }
+
+
+@app.function(
+    image=image,
+    gpu="T4",
+    timeout=600,
+    secrets=[modal.Secret.from_name("minutely-secrets")],
+    volumes={"/cache": volume},
+)
+@modal.asgi_app(label="minutely-transcribe")
+def transcribe_api():
+    return web_app
 
 
 @app.local_entrypoint()
