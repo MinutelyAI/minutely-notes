@@ -19,3 +19,6 @@ const CONFIG = {
     appId: "YOUR_FIREBASE_APP_ID"
   }
 };
+
+// Expose config globally for non-module and module scripts.
+window.CONFIG = CONFIG;
