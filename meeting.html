@@ -675,13 +675,18 @@ body::after {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, push, onValue, set, onDisconnect, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
-const firebaseConfig = window.CONFIG.FIREBASE;
+const runtimeConfig = window.CONFIG || globalThis.CONFIG;
+if (!runtimeConfig || !runtimeConfig.FIREBASE) {
+  throw new Error("Missing CONFIG/FIREBASE. Copy config.example.js to config.js and fill in your keys.");
+}
+
+const firebaseConfig = runtimeConfig.FIREBASE;
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp);
 
 // ---- STATE ----
-const DEEPGRAM_KEY = window.CONFIG.DEEPGRAM_KEY;
+const DEEPGRAM_KEY = runtimeConfig.DEEPGRAM_KEY;
 let roomId = "";
 let myName = "";
 let myId = "u_" + Math.random().toString(36).substr(2, 8);
@@ -727,9 +732,11 @@ if (urlRoom) {
 
 function enterMeeting() {
   // Update URL
-  const url = new URL(window.location);
-  url.searchParams.set("room", roomId);
-  window.history.pushState({}, "", url);
+  if (window.location.protocol !== "file:") {
+    const url = new URL(window.location);
+    url.searchParams.set("room", roomId);
+    window.history.pushState({}, "", url);
+  }
 
   // Switch screens
   document.getElementById("lobby").classList.remove("active");
@@ -932,6 +939,11 @@ function stopMic() {
 
 // ---- UTILS ----
 window.copyRoomLink = () => {
+  if (window.location.protocol === "file:") {
+    showToast("Open this app on http://localhost to share invite links.");
+    return;
+  }
+
   const url = new URL(window.location);
   url.searchParams.set("room", roomId);
   navigator.clipboard.writeText(url.toString());
@@ -953,7 +965,24 @@ window.leaveMeeting = () => {
   stopMic();
   const presenceRef = ref(db, `rooms/${roomId}/participants/${myId}`);
   set(presenceRef, null);
-  window.location.href = window.location.pathname;
+
+  // Avoid file:// navigation restrictions by resetting in-place.
+  if (window.location.protocol === "file:") {
+    roomId = "";
+    transcriptMessages = [];
+    document.getElementById("roomCodeInput").value = "";
+    document.getElementById("interimText").textContent = "";
+    document.getElementById("participantsList").innerHTML = "";
+    document.querySelectorAll("#transcriptScroll .message").forEach(node => node.remove());
+    document.getElementById("transcriptEmpty").style.display = "block";
+    document.getElementById("lobby").classList.add("active");
+    document.getElementById("meeting").classList.remove("active");
+    return;
+  }
+
+  const url = new URL(window.location);
+  url.search = "";
+  window.location.href = url.toString();
 };
 
 function showToast(msg) {
